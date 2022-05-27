@@ -1,9 +1,9 @@
 #import <React/RCTBridgeModule.h>
+#import <React/RCTEventEmitter.h>
 
-@interface RCT_EXTERN_MODULE(HwTransportReactNativeBle, NSObject)
+@interface RCT_EXTERN_MODULE(HwTransportReactNativeBle, RCTEventEmitter)
 
-RCT_EXTERN_METHOD(multiply:(float)a withB:(float)b
-                 withResolver:(RCTPromiseResolveBlock)resolve
-                 withRejecter:(RCTPromiseRejectBlock)reject)
+RCT_EXTERN_METHOD(scan)
+RCT_EXTERN_METHOD(stop)
 
 @end

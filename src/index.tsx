@@ -1,4 +1,6 @@
 import { NativeModules, Platform } from 'react-native';
+import EventEmitter from './EventEmitter';
+import type { Observer } from 'rxjs';
 
 const LINKING_ERROR =
   `The package 'hw-transport-react-native-ble' doesn't seem to be linked. Make sure: \n\n` +
@@ -17,6 +19,29 @@ const HwTransportReactNativeBle = NativeModules.HwTransportReactNativeBle
       }
     );
 
-export function multiply(a: number, b: number): Promise<number> {
-  return HwTransportReactNativeBle.multiply(a, b);
-}
+export default (() => {
+  let scanningSub: any;
+
+  const scan = (sub: Observer<String>): void => {
+    if (!scanningSub) {
+      // Do we need multiple listeners?
+      scanningSub = EventEmitter?.addListener('new-device', (e) => {
+        sub.next(e);
+      });
+
+      HwTransportReactNativeBle.scan();
+    }
+  };
+
+  const stop = (): void => {
+    scanningSub?.remove();
+    scanningSub = null;
+
+    HwTransportReactNativeBle.stop();
+  };
+
+  return {
+    scan,
+    stop,
+  };
+})();
