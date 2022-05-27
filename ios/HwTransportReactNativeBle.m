@@ -5,5 +5,7 @@
 
 RCT_EXTERN_METHOD(scan)
 RCT_EXTERN_METHOD(stop)
+RCT_EXTERN_METHOD(connect: (NSString *) string)
+RCT_EXTERN_METHOD(disconnect)
 
 @end

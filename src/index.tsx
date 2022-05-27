@@ -21,11 +21,19 @@ const HwTransportReactNativeBle = NativeModules.HwTransportReactNativeBle
 
 export default (() => {
   let scanningSub: any;
+  let connectSub: any;
+  let disconnectSub: any;
 
   const scan = (sub: Observer<String>): void => {
     if (!scanningSub) {
       // Do we need multiple listeners?
       scanningSub = EventEmitter?.addListener('new-device', (e) => {
+        sub.next(e);
+      });
+      connectSub = EventEmitter?.addListener('device-connected', (e) => {
+        sub.next(e);
+      });
+      disconnectSub = EventEmitter?.addListener('device-disconnected', (e) => {
         sub.next(e);
       });
 
@@ -36,12 +44,21 @@ export default (() => {
   const stop = (): void => {
     scanningSub?.remove();
     scanningSub = null;
+    connectSub?.remove();
+    connectSub = null;
+    disconnectSub?.remove();
+    disconnectSub = null;
 
     HwTransportReactNativeBle.stop();
+  };
+
+  const connect = (uuid: String): void => {
+    HwTransportReactNativeBle.connect(uuid);
   };
 
   return {
     scan,
     stop,
+    connect,
   };
 })();

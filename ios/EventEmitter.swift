@@ -6,7 +6,15 @@
 //
 
 import Foundation
-import BleTransport
+
+enum Events: String, CaseIterable {
+    case newDevice = "new-device"
+    case startScanning = "start-scanning"
+    case stopScanning = "stop-scanning"
+    case deviceConnected = "device-connected"
+    case deviceDisconnected = "device-disconnected"
+    case error = "error"
+}
 
 class EventEmitter {
     public static var sharedInstance = EventEmitter()
@@ -20,11 +28,9 @@ class EventEmitter {
 
     func dispatch(name: String, body: Any?) {
         eventEmitter.sendEvent(withName: name, body: body)
-        BleTransport.version()
     }
 
     lazy var allEvents: [String] = {
-        var allEventNames: [String] = ["new-device"]
-        return allEventNames
+        return Events.allCases.map { $0.rawValue }
     }()
 }
