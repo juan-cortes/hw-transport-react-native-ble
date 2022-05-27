@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import BleTransport
 
 class EventEmitter {
     public static var sharedInstance = EventEmitter()
@@ -19,6 +20,7 @@ class EventEmitter {
 
     func dispatch(name: String, body: Any?) {
         eventEmitter.sendEvent(withName: name, body: body)
+        BleTransport.version()
     }
 
     lazy var allEvents: [String] = {
