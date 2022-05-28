@@ -12,12 +12,15 @@ import { log, listen } from '@ledgerhq/logs';
 
 export default function App() {
   const [entries, setEntries] = React.useState<string[]>([]);
+  const [isConnected, setIsConnected] = React.useState<boolean>(false);
   const [logs, setLogs] = React.useState<string[]>([]);
+
   useEffect(() => {
     listen(({ type, message }) => {
       setLogs((logs) => [JSON.stringify({ type, message }), ...logs]);
     });
   }, []);
+
   const onStart = useCallback(() => {
     setEntries([]);
     const sub = new Observable((s) => BleTransport.listen(s)).subscribe({
@@ -29,28 +32,48 @@ export default function App() {
     };
   }, []);
 
-  const onStop = useCallback(() => {
-    BleTransport.stop();
-  }, []);
-
   const onConnect = useCallback((uuid) => {
-    BleTransport.connect(uuid);
+    BleTransport.connect(uuid).then(() => setIsConnected(true));
   }, []);
 
   const onDisconnect = useCallback(() => {
-    BleTransport.disconnect();
-  }, []);
+    if (!isConnected) return;
+    BleTransport.disconnect().then(() => setIsConnected(false));
+  }, [isConnected]);
 
   const onExchange = useCallback(() => {
+    if (!isConnected) return;
     const result = BleTransport.exchange('b001000000');
     result.then((apdu) => {
       log('apdu ', `<= ${apdu}`);
     });
-  }, []);
+  }, [isConnected]);
 
   const onInstallBTC = useCallback(() => {
-    BleTransport.installBTC(); // Long running task init
-  }, []);
+    if (!isConnected) return;
+    let url =
+      'wss://scriptrunner.api.live.ledger.com/update/install?' +
+      'targetId=855638020' +
+      '&perso=perso_11' +
+      '&firmware=nanox%2F2.0.2-2%2Fbitcoin%2Fapp_2.0.4' +
+      '&firmwareKey=nanox%2F2.0.2-2%2Fbitcoin%2Fapp_2.0.4_key' +
+      '&hash=8bf06e39e785ba5a8cf27bfa95036ccab02d756f8b8f44c3c3137fd035d5cb0c' +
+      '&livecommonversion=22.0.0';
+    BleTransport.runner(url); // Long running task init
+  }, [isConnected]);
+
+  const onUninstallBTC = useCallback(() => {
+    if (!isConnected) return;
+    let url =
+      'wss://scriptrunner.api.live.ledger.com/update/install?' +
+      'targetId=855638020' +
+      '&perso=perso_11' +
+      '&firmware=nanox%2F2.0.2-2%2Fbitcoin%2Fapp_2.0.4_del' +
+      '&firmwareKey=nanox%2F2.0.2-2%2Fbitcoin%2Fapp_2.0.4_del_key' +
+      '&hash=8bf06e39e785ba5a8cf27bfa95036ccab02d756f8b8f44c3c3137fd035d5cb0c' +
+      '&livecommonversion=22.0.0';
+    BleTransport.runner(url); // Long running task init
+  }, [isConnected]);
 
   return (
     <View style={styles.container}>
@@ -59,22 +82,26 @@ export default function App() {
         <TouchableOpacity style={styles.btn} onPress={onStart}>
           <Text>{'Scan'}</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.btn} onPress={onStop}>
-          <Text>{'Kill'}</Text>
-        </TouchableOpacity>
         <TouchableOpacity style={styles.btn} onPress={onDisconnect}>
-          <Text>{'Disc.'}</Text>
+          <Text style={!isConnected ? styles.disabled : {}}>{'Disc.'}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.btn} onPress={onExchange}>
-          <Text>{'Send'}</Text>
+          <Text style={!isConnected ? styles.disabled : {}}>{'Send'}</Text>
         </TouchableOpacity>
       </View>
       <View style={styles.buttons}>
         <TouchableOpacity style={styles.btn} onPress={onInstallBTC}>
-          <Text>{'Install BTC'}</Text>
+          <Text style={!isConnected ? styles.disabled : {}}>
+            {'Install BTC'}
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.btn} onPress={onUninstallBTC}>
+          <Text style={!isConnected ? styles.disabled : {}}>
+            {'Uninstall BTC'}
+          </Text>
         </TouchableOpacity>
       </View>
-      <Text style={styles.header}>{'Visible devices'}</Text>
+      <Text style={styles.header}>{'Visible devices (click to connect)'}</Text>
       <View style={styles.wrapper}>
         {entries.map((e) => (
           <TouchableOpacity
@@ -87,7 +114,7 @@ export default function App() {
         ))}
       </View>
       <Text style={styles.header}>{'Logs'}</Text>
-      <View style={styles.wrapper}>
+      <View style={[styles.wrapper, { flex: 3 }]}>
         <ScrollView>
           {logs.map((e, i) => (
             <Text key={`log_${i}`}>{e}</Text>
@@ -104,6 +131,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingTop: 20,
+  },
+  disabled: {
+    color: '#ccc',
   },
   header: {
     paddingHorizontal: 20,

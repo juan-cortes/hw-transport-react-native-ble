@@ -9,6 +9,10 @@ class BleTransport extends Transport {
   static uuid: String = ''; // We probably need more information than the uuid
   static isScanning: Boolean = false;
   static isConnected: Boolean = false;
+
+  static pendingConnectResolve: any;
+  static pendingDisconnectResolve: any;
+
   static listeners: { [key: string]: any } = {
     status: EventEmitter?.addListener('status', (status) => {
       log('ble', status);
@@ -21,11 +25,20 @@ class BleTransport extends Transport {
           break;
         case 'connected':
           BleTransport.isConnected = true;
+          if (BleTransport.pendingConnectResolve) {
+            BleTransport.pendingConnectResolve();
+          }
           break;
         case 'disconnected':
           BleTransport.isConnected = false;
+          if (BleTransport.pendingDisconnectResolve) {
+            BleTransport.pendingDisconnectResolve();
+          }
           break;
       }
+    }),
+    task: EventEmitter?.addListener('task', (task) => {
+      log('ble', task);
     }),
   };
 
@@ -56,21 +69,47 @@ class BleTransport extends Transport {
     HwTransportReactNativeBle.stop();
   };
 
-  private static connect = (_uuid: String): void => {
+  private static connect = async (_uuid: String): void => {
     log('ble-verbose', `user connect req (${_uuid})`);
     BleTransport.uuid = _uuid;
+
+    // Create a promise that will be resolved when we connect
+    const promise = new Promise((resolve, reject) => {
+      BleTransport.pendingConnectResolve = resolve;
+      BleTransport.pendingConnectReject = reject;
+    });
+
+    promise.then((result) => {
+      console.log('cleanup', result);
+      BleTransport.pendingConnectResolve = null;
+      BleTransport.pendingConnectReject = null;
+    });
+
     HwTransportReactNativeBle.connect(_uuid);
   };
 
   static disconnect = async (id: any) => {
     log('ble-verbose', `user disconnect req (${id})`);
+
+    // Create a promise that will be resolved when we connect
+    const promise = new Promise((resolve, reject) => {
+      BleTransport.pendingDisconnectResolve = resolve;
+      BleTransport.pendingDisconnectReject = reject;
+    });
+
+    promise.then((result) => {
+      console.log('cleanup', result);
+      BleTransport.pendingDisconnectResolve = null;
+      BleTransport.pendingDisconnectReject = null;
+    });
+
     HwTransportReactNativeBle.disconnect();
   };
 
-  static installBTC = async () => {
+  static runner = async (url) => {
     // DO it dynamically
-    log('ble-verbose', `request to install BTC`);
-    HwTransportReactNativeBle.installBTC();
+    log('ble-verbose', `request to launch runner for url ${url}`);
+    HwTransportReactNativeBle.runner(url);
   };
 
   static exchange = (apdu: Buffer): Promise<any> => {

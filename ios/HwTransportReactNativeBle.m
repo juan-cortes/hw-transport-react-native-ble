@@ -9,5 +9,5 @@ RCT_EXTERN_METHOD(connect: (NSString *) string)
 RCT_EXTERN_METHOD(disconnect)
 RCT_EXTERN_METHOD(exchange: (NSString *) apdu)
 
-RCT_EXTERN_METHOD(installBTC)
+RCT_EXTERN_METHOD(runner: (NSString *) url)
 @end
