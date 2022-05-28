@@ -44,8 +44,8 @@ export default function App() {
   const onExchange = useCallback(() => {
     if (!isConnected) return;
     const result = BleTransport.exchange('b001000000');
-    result.then((apdu) => {
-      log('apdu ', `<= ${apdu}`);
+    result.then(([e, apdu]) => {
+      log(e ? 'error' : 'apdu', e ? e : `<= ${apdu}`);
     });
   }, [isConnected]);
 

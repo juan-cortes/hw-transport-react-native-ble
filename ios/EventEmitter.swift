@@ -8,6 +8,7 @@
 import Foundation
 
 enum Event: String, CaseIterable {
+    case parent = "BleTransport"
     case newDevice = "new-device"
     case status = "status"
     case apdu = "apdu"
@@ -29,13 +30,19 @@ enum Action: String, CaseIterable {
     case bulkProgress = "bulk-progress"
 }
 
+struct Payload: Codable {
+    let event: String
+    let type: String
+    let data: String?
+}
+
 class EventEmitter {
     public static var sharedInstance = EventEmitter()
     private var eventEmitter: HwTransportReactNativeBle!
     
     private var isJavaScriptAvailable: Bool = true
     private var isConsumingQueue: Bool = false
-    private var queuedEvents:[(event: Event, type: String, data: Any?)] = []
+    private var queuedEvents:[Payload] = []
     
     /// Throttling optimization feat
     private var pendingEvent : DispatchSourceTimer!
@@ -57,17 +64,18 @@ class EventEmitter {
     }
     
     func dispatch(event: Event, type: String, data: String?) {
-        let newEvent = (event: event, type: type, data: data)
+        let newPayload = Payload(event: event.rawValue, type: type, data: data)
         
         if self.queuedEvents.count > 0 {
             let previousLog = self.queuedEvents.last
-            if previousLog?.type == newEvent.type && previousLog?.event == newEvent.event { // Replacements take care of adding elements to the queue
-                self.queuedEvents[self.queuedEvents.count-1] = newEvent
+            if previousLog?.type == newPayload.type
+            && previousLog?.event == newPayload.event {
+                self.queuedEvents[self.queuedEvents.count-1] = newPayload
                 self.consumeEventQueue()
                 return
             }
         }
-        self.queuedEvents.append(newEvent)
+        self.queuedEvents.append(newPayload)
         self.consumeEventQueue()
     }
     
@@ -83,42 +91,43 @@ class EventEmitter {
         
         while self.queuedEvents.count > 0 && self.isJavaScriptAvailable {
             let event = self.queuedEvents.removeFirst()
-            let payload = "{\"type\": \"\(String(describing: event.type))\", \"data\": \"\(event.data ?? "")\"}"
-            
-            /// This is the runner that will be dispatched some time in the future. The schedule time is independent from the task executed
-            /// Meaning we can replace this runner if a more relevant event is received (think higher progress) without impacting the schedule
-            /// time.
-            let exec: () -> Void = {
-                self.eventEmitter.sendEvent(withName: event.event.rawValue, body: payload)
-                /// Cleanup
-                self.lastEventType = event.type
-                self.lastEventTime = Date().timeIntervalSince1970
-                
-                if self.pendingEvent != nil {
-                    self.pendingEvent.cancel()
-                    self.pendingEvent = nil
+            do {
+                let encodedData = try JSONEncoder().encode(event)
+                let payload = String(data: encodedData, encoding: .utf8)
+
+                let exec: () -> Void = {
+                    self.eventEmitter.sendEvent(withName:Event.parent.rawValue, body: payload)
+                    self.lastEventType = event.type
+                    self.lastEventTime = Date().timeIntervalSince1970
+                    
+                    if self.pendingEvent != nil {
+                        self.pendingEvent.cancel()
+                        self.pendingEvent = nil
+                    }
                 }
-            }
-            
-            /// There's a scheduled event of the same type, replace it with this one
-            if (self.pendingEvent != nil && self.lastEventType == event.type) {
-                // We know we can replace this with our event, no need to touch the
-                self.pendingEvent.setEventHandler(handler: exec)
-            }
-            /// It's too soon to dispatch another event of the same type
-            else if (self.lastEventTime + Double(self.throttle)/1000) >= Date().timeIntervalSince1970 &&
-                        self.lastEventType == event.type {
-                let offset = Date(timeIntervalSince1970: TimeInterval((self.lastEventTime))).timeIntervalSinceNow
-                let msOffset = Int(offset * 1000) + self.throttle
                 
-                self.pendingEvent = DispatchSource.makeTimerSource(queue: DispatchQueue.main)
-                self.pendingEvent.schedule(deadline: .now() + .milliseconds(msOffset))
-                self.pendingEvent.setEventHandler(handler: exec)
-                self.pendingEvent.resume()
-            }
-            /// All other cases can safely dispatch the event
-            else {
-                exec()
+                /// There's a scheduled event of the same type, replace it with this one
+                if (self.pendingEvent != nil && self.lastEventType == event.type) {
+                    // We know we can replace this with our event, no need to touch the
+                    self.pendingEvent.setEventHandler(handler: exec)
+                }
+                /// It's too soon to dispatch another event of the same type
+                else if (self.lastEventTime + Double(self.throttle)/1000) >= Date().timeIntervalSince1970 &&
+                            self.lastEventType == event.type {
+                    let offset = Date(timeIntervalSince1970: TimeInterval((self.lastEventTime))).timeIntervalSinceNow
+                    let msOffset = Int(offset * 1000) + self.throttle
+                    
+                    self.pendingEvent = DispatchSource.makeTimerSource(queue: DispatchQueue.main)
+                    self.pendingEvent.schedule(deadline: .now() + .milliseconds(msOffset))
+                    self.pendingEvent.setEventHandler(handler: exec)
+                    self.pendingEvent.resume()
+                }
+                /// All other cases can safely dispatch the event
+                else {
+                    exec()
+                }
+            } catch {
+                print(error)
             }
         }
         
@@ -127,6 +136,6 @@ class EventEmitter {
     }
 
     lazy var allEvents: [String] = {
-        return Event.allCases.map { $0.rawValue }
+        return ["BleTransport"] // All events can be wrapped through this channel.
     }()
 }

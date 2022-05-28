@@ -7,60 +7,47 @@ const HwTransportReactNativeBle = NativeModules.HwTransportReactNativeBle;
 
 class BleTransport extends Transport {
   static uuid: String = ''; // We probably need more information than the uuid
+  static scanObserver: any;
   static isScanning: Boolean = false;
   static isConnected: Boolean = false;
 
-  static pendingConnectResolve: any;
-  static pendingDisconnectResolve: any;
+  static listeners = EventEmitter?.addListener('BleTransport', (rawEvent) => {
+    const { event, type, data } = JSON.parse(rawEvent);
+    log('ble', JSON.stringify({ type, data }));
 
-  static listeners: { [key: string]: any } = {
-    status: EventEmitter?.addListener('status', (rawStatus) => {
-      const status = JSON.parse(rawStatus);
+    switch (event) {
+      case 'status':
+        /// Status handling
+        switch (type) {
+          case 'start-scanning':
+            BleTransport.isScanning = true;
+            break;
+          case 'stop-scanning':
+            BleTransport.isScanning = false;
+            break;
+          case 'connected':
+            BleTransport.isConnected = true;
+            break;
+          case 'disconnected':
+            BleTransport.isConnected = false;
+            break;
+        }
+        break;
+      case 'task':
+        // Do something
+        break;
+      case 'new-device':
+        BleTransport.scanObserver.next(type);
+        break;
+    }
+  });
 
-      log('ble', status.type);
-      switch (status) {
-        case 'start-scanning':
-          BleTransport.isScanning = true;
-          break;
-        case 'stop-scanning':
-          BleTransport.isScanning = false;
-          break;
-        case 'connected':
-          BleTransport.isConnected = true;
-          if (BleTransport.pendingConnectResolve) {
-            BleTransport.pendingConnectResolve();
-          }
-          break;
-        case 'disconnected':
-          BleTransport.isConnected = false;
-          if (BleTransport.pendingDisconnectResolve) {
-            BleTransport.pendingDisconnectResolve();
-          }
-          break;
-      }
-    }),
-    task: EventEmitter?.addListener('task', (rawTask) => {
-      try {
-        const task = JSON.parse(rawTask);
-        log('ble', task);
-      } catch (e) {
-        log('ble failed', rawTask);
-        log('ble failed', e);
-      }
-    }),
-  };
-
+  /// TODO events and whatnot
   static listen(observer: any) {
     log('ble-verbose', 'listen...');
-    if (!BleTransport.listeners.scanning) {
-      BleTransport.listeners.scanning = EventEmitter?.addListener(
-        'new-device',
-        (rawEvent) => {
-          const event = JSON.parse(rawEvent);
-          // Do we always need JSON, what about the overhead
-          observer.next(event.type);
-        }
-      );
+    if (!BleTransport.isScanning) {
+      BleTransport.isScanning = true;
+      BleTransport.scanObserver = observer;
       HwTransportReactNativeBle.listen();
     }
 
@@ -76,77 +63,40 @@ class BleTransport extends Transport {
   }
 
   private static stop = (): void => {
-    BleTransport.listeners.scanning?.remove();
-    BleTransport.listeners.scanning = null;
+    BleTransport.isScanning = false;
     HwTransportReactNativeBle.stop();
   };
 
-  private static connect = async (_uuid: String): void => {
+  private static connect = async (_uuid: String): Promise<any> => {
     log('ble-verbose', `user connect req (${_uuid})`);
     BleTransport.uuid = _uuid;
 
-    // Create a promise that will be resolved when we connect
-    const promise = new Promise((resolve, reject) => {
-      BleTransport.pendingConnectResolve = resolve;
-      BleTransport.pendingConnectReject = reject;
+    return new Promise((resolve) => {
+      HwTransportReactNativeBle.connect(_uuid, resolve);
     });
-
-    promise.then((result) => {
-      console.log('cleanup', result);
-      BleTransport.pendingConnectResolve = null;
-      BleTransport.pendingConnectReject = null;
-    });
-
-    HwTransportReactNativeBle.connect(_uuid);
   };
 
-  static disconnect = async (id: any) => {
+  static disconnect = (id: any): Promise<any> => {
     log('ble-verbose', `user disconnect req (${id})`);
 
-    // Create a promise that will be resolved when we connect
-    const promise = new Promise((resolve, reject) => {
-      BleTransport.pendingDisconnectResolve = resolve;
-      BleTransport.pendingDisconnectReject = reject;
+    return new Promise((resolve) => {
+      HwTransportReactNativeBle.disconnect(resolve);
     });
-
-    promise.then((result) => {
-      console.log('cleanup', result);
-      BleTransport.pendingDisconnectResolve = null;
-      BleTransport.pendingDisconnectReject = null;
-    });
-
-    HwTransportReactNativeBle.disconnect();
-  };
-
-  static runner = async (url) => {
-    // DO it dynamically
-    log('ble-verbose', `request to launch runner for url ${url}`);
-    HwTransportReactNativeBle.runner(url);
   };
 
   static exchange = (apdu: Buffer): Promise<any> => {
     const apduString = apdu.toString('hex');
     log('apdu', `=> ${apduString}`);
 
-    // Create a promise that will be resolved when we receive the apdu event
-    const promise = new Promise((resolve, _) => {
-      BleTransport.listeners.apdu = EventEmitter?.addListener(
-        'apdu',
-        (data) => {
-          const response = JSON.parse(data);
-          resolve(response.type);
-        }
-      );
+    return new Promise((resolve) => {
+      HwTransportReactNativeBle.exchange(apduString, (...p) => resolve(p));
     });
+  };
 
-    promise.then((result) => {
-      console.log('cleanup', result);
-      BleTransport.listeners.apdu?.remove();
-      BleTransport.listeners.apdu = null;
-    });
-
-    HwTransportReactNativeBle.exchange(apduString);
-    return promise;
+  static runner = (url) => {
+    // DO it dynamically
+    log('ble-verbose', `request to launch runner for url ${url}`);
+    HwTransportReactNativeBle.runner(url);
   };
 }
 

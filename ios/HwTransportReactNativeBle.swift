@@ -7,7 +7,7 @@ class HwTransportReactNativeBle: RCTEventEmitter {
     var transport: BleTransport? = nil
     var isConnected: Bool = false
     var runner: Runner?
-
+    
     override init() {
         let configuration = BleTransportConfiguration(services: [BleService(serviceUUID: "13D63400-2C97-0004-0000-4C6564676572",
                                                                             notifyUUID: "13d63400-2c97-0004-0001-4c6564676572",
@@ -35,6 +35,10 @@ class HwTransportReactNativeBle: RCTEventEmitter {
         EventEmitter.sharedInstance.dispatch(event: event, type: withPayload, data: nil)
     }
     
+    private func emit(_ event: Event, type: String, andData: String) -> Void {
+        EventEmitter.sharedInstance.dispatch(event: event, type: type, data: andData)
+    }
+    
     private func blackHole (_ : String) -> Void {}
     
     ///  Since scan seems to be triggered a million times per second, emit only when the size changes
@@ -50,10 +54,12 @@ class HwTransportReactNativeBle: RCTEventEmitter {
                 transport.scan { [weak self] discoveries in
                     if discoveries.count != self!.lastSeenSize {
                         self?.lastSeenSize = discoveries.count
+                        
+                        /// Found devices are handled via events since we need more than one call
                         discoveries.forEach{
                             let uuid = String(describing: $0.peripheral.uuid)
                             self?.seenDevicesByUUID[uuid] = $0.peripheral
-                            self?.emit(Event.newDevice, withPayload: uuid)
+                            self?.emit(Event.newDevice, type: uuid, andData: $0.peripheral.name)
                         }
                     }
                 } stopped: {
@@ -82,60 +88,65 @@ class HwTransportReactNativeBle: RCTEventEmitter {
                 onEvent: self.emitFromRunner,
                 onDone: self.blackHole
             )
+            
+            /// Runner apdus need to be handled via events
         }
     }
     
     /// Connection events are handled on the JavaScript side to keep a state that is accessible from LLM
     @objc
-    func connect(_ uuid: String) -> Void {
+    func connect(_ uuid: String, callback: @escaping RCTResponseSenderBlock) -> Void {
         if let transport = transport, !isConnected {
             if let peripheral = self.seenDevicesByUUID[uuid] {
                 DispatchQueue.main.async {
                     transport.connect(toPeripheralID: peripheral) {
                         self.emit(Event.status, withStatus: Status.deviceDisconnected)
                         self.isConnected = false
+                        callback(["Disconnected", false])
                     } success: { PeripheralIdentifier in
                         self.emit(Event.status, withStatus: Status.deviceConnected)
                         self.isConnected = true
+                        callback([NSNull(), true])
                     } failure: { e in
                         self.emit(Event.status, withStatus: Status.deviceDisconnected)
                         self.isConnected = false
+                        callback([String(describing: e), false])
                     }
                 }
             }
         }
     }
     
+    
     @objc
-    func disconnect() -> Void {
+    func disconnect(callback: @escaping RCTResponseSenderBlock) -> Void {
         if let transport = transport, isConnected {
             DispatchQueue.main.async { /// Seems like I'm going to have to do this all the time
                 transport.disconnect(immediate: true, completion: { _ in
-                    // Already handled on the connect func
+                    callback([NSNull(), true])
                 })
             }
         }
     }
     
     @objc
-    func exchange(_ apdu: String) -> Void {
+    func exchange(_ apdu: String, callback: @escaping RCTResponseSenderBlock) -> Void {
         if let transport = transport {
             DispatchQueue.main.async { /// Seems like I'm going to have to do this all the time
-                transport.exchange(apdu: APDU(raw: apdu)) { [weak self] result in
-                    guard let self = self else { return }
+                transport.exchange(apdu: APDU(raw: apdu)) { result in
                     switch result {
                     case .success(let response):
-                        self.emit(Event.apdu, withPayload: response)
+                        callback([NSNull(), response])
                     case .failure(let error):
                         switch error {
                         case .readError(let description):
-                            self.emit(Event.apdu, withPayload: "read error \(String(describing:description))")
+                            callback([ "read error \(String(describing:description))"])
                         case .writeError(let description):
-                            self.emit(Event.apdu, withPayload: "write error \(String(describing:description))")
+                            callback([ "write error \(String(describing:description))"])
                         case .pendingActionOnDevice:
-                            self.emit(Event.apdu, withPayload: "pending error")
+                            callback([ "pending action"])
                         default:
-                            self.emit(Event.apdu, withPayload: "another error")
+                            callback([ "another action"])
                         }
                     }
                 }
