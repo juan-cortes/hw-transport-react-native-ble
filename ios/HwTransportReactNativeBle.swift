@@ -19,11 +19,11 @@ class HwTransportReactNativeBle: RCTEventEmitter {
     }
     
     /// Emit an action from a runner (this is too vague though, figure it out)
-    private func emitFromRunner(_ action: Action, withPayload: String?,  replaceable: Bool) -> Void {
+    private func emitFromRunner(_ type: Action, withPayload: String) -> Void {
         EventEmitter.sharedInstance.dispatch(
-            name: Event.task.rawValue,
-            body: "\(action.rawValue) - \(String(describing:withPayload)    )",
-            replaceable: replaceable
+            event: Event.task,
+            type: type.rawValue,
+            data: withPayload
         )
     }
     /// Emit a status update, mostly flags
@@ -32,7 +32,7 @@ class HwTransportReactNativeBle: RCTEventEmitter {
     }
     /// Emit an event with a payload, such as finding a new device
     private func emit(_ event: Event, withPayload: String) -> Void {
-        EventEmitter.sharedInstance.dispatch(name: event.rawValue, body: withPayload)
+        EventEmitter.sharedInstance.dispatch(event: event, type: withPayload, data: nil)
     }
     
     private func blackHole (_ : String) -> Void {}

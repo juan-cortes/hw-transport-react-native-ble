@@ -13,7 +13,7 @@ class Runner: NSObject  {
     var transport : BleTransport
     var endpoint : URL
     
-    var onEvent: ((Action, String?, Bool)->Void)?
+    var onEmit: ((Action, String)->Void)?
     var onDone: ((String)->Void)?
     
     var isRunning: Bool = false
@@ -33,36 +33,34 @@ class Runner: NSObject  {
     public init (
         _ transport : BleTransport,
         endpoint : URL,
-        onEvent: @escaping ((Action, String?, Bool)->Void),
+        onEvent: @escaping ((Action, String)->Void),
         onDone: ((String)->Void)?
     ) {
         self.transport = transport
         self.endpoint = endpoint
         self.isRunning = true
-        self.onEvent = onEvent
+        self.onEmit = onEvent
         self.onDone = onDone
         
         super.init()
         self.startScriptRunner()
     }
     
-    ///Based on the apdu in/out we can infer some events that we need to emit up to javascript. Not all exchanges need an event
-    ///and we should deinitely introduce some sort of throtling if it becomes a bottleneck. There is no point in updating the progress
-    ///everytime we send an apdu.
+    /// Based on the apdu in/out we can infer some events that we need to emit up to javascript. Not all exchanges need an event.
     private func maybeEmitEvent(_ apdu : String, fromHSM: Bool = true) {
         if fromHSM && apdu.starts(with: "e051") {
             self.isUserBlocked = true
-            self.onEvent!(Action.permissionRequested, nil, false)
+            self.onEmit!(Action.permissionRequested, "")
         } else if !fromHSM && self.isUserBlocked {
             self.isUserBlocked = false
             if apdu.suffix(4) == "9000" {
-                self.onEvent!(Action.permissionGranted, nil, false)
+                self.onEmit!(Action.permissionGranted, "")
             } else {
-                self.onEvent!(Action.permissionRefused, nil, false)
+                self.onEmit!(Action.permissionRefused, "")
             }
         } else if self.isInBulkMode {
             let progress = ((Double(self.APDUMaxCount-self.APDUQueue.count))/Double(self.APDUMaxCount))*100
-            self.onEvent!(Action.bulkProgress, String(progress), true)
+            self.onEmit!(Action.bulkProgress, String(progress))
         }
         
     }

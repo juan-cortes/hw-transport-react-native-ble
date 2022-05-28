@@ -14,8 +14,10 @@ class BleTransport extends Transport {
   static pendingDisconnectResolve: any;
 
   static listeners: { [key: string]: any } = {
-    status: EventEmitter?.addListener('status', (status) => {
-      log('ble', status);
+    status: EventEmitter?.addListener('status', (rawStatus) => {
+      const status = JSON.parse(rawStatus);
+
+      log('ble', status.type);
       switch (status) {
         case 'start-scanning':
           BleTransport.isScanning = true;
@@ -37,8 +39,14 @@ class BleTransport extends Transport {
           break;
       }
     }),
-    task: EventEmitter?.addListener('task', (task) => {
-      log('ble', task);
+    task: EventEmitter?.addListener('task', (rawTask) => {
+      try {
+        const task = JSON.parse(rawTask);
+        log('ble', task);
+      } catch (e) {
+        log('ble failed', rawTask);
+        log('ble failed', e);
+      }
     }),
   };
 
@@ -47,7 +55,11 @@ class BleTransport extends Transport {
     if (!BleTransport.listeners.scanning) {
       BleTransport.listeners.scanning = EventEmitter?.addListener(
         'new-device',
-        (e) => observer.next(e)
+        (rawEvent) => {
+          const event = JSON.parse(rawEvent);
+          // Do we always need JSON, what about the overhead
+          observer.next(event.type);
+        }
       );
       HwTransportReactNativeBle.listen();
     }
@@ -118,8 +130,12 @@ class BleTransport extends Transport {
 
     // Create a promise that will be resolved when we receive the apdu event
     const promise = new Promise((resolve, _) => {
-      BleTransport.listeners.apdu = EventEmitter?.addListener('apdu', (data) =>
-        resolve(data)
+      BleTransport.listeners.apdu = EventEmitter?.addListener(
+        'apdu',
+        (data) => {
+          const response = JSON.parse(data);
+          resolve(response.type);
+        }
       );
     });
 
