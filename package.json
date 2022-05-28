@@ -71,6 +71,10 @@
     "react": "*",
     "react-native": "*"
   },
+  "dependencies": {
+    "@ledgerhq/hw-transport": "^6.27.1",
+    "@ledgerhq/logs": "^6.10.0"
+  },
   "jest": {
     "preset": "react-native",
     "modulePathIgnorePatterns": [

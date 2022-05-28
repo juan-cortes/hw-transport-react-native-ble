@@ -9,6 +9,10 @@ import Foundation
 
 enum Events: String, CaseIterable {
     case newDevice = "new-device"
+    case status = "status"
+    case apdu = "apdu"
+}
+enum Status: String, CaseIterable {
     case startScanning = "start-scanning"
     case stopScanning = "stop-scanning"
     case deviceConnected = "device-connected"

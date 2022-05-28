@@ -17,4 +17,5 @@ Pod::Spec.new do |s|
 
   s.dependency "React-Core"
   s.dependency "BleTransport"
+  s.dependency "Starscream", "~> 4.0.0"
 end

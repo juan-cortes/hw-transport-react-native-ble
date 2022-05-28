@@ -10,6 +10,7 @@ target 'HwTransportReactNativeBleExample' do
 
   pod 'hw-transport-react-native-ble', :path => '../..'
 
+  pod 'Starscream', '~> 4.0.0'
   pod 'BleTransport', :git => 'https://github.com/LedgerHQ/ios-ble.git'
   pod 'Bluejay', :git => 'https://github.com/DantePuglisi/bluejay.git', branch: 'fail-when-wrong-characteristic-property'
 
