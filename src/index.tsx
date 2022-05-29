@@ -3,9 +3,9 @@ import Transport from '@ledgerhq/hw-transport';
 import { log } from '@ledgerhq/logs';
 import EventEmitter from './EventEmitter';
 
-const HwTransportReactNativeBle = NativeModules.HwTransportReactNativeBle;
+const NativeBle = NativeModules.HwTransportReactNativeBle;
 
-class BleTransport extends Transport {
+class Ble extends Transport {
   static uuid: String = ''; // We probably need more information than the uuid
   static scanObserver: any;
   static isScanning: Boolean = false;
@@ -20,16 +20,16 @@ class BleTransport extends Transport {
         /// Status handling
         switch (type) {
           case 'start-scanning':
-            BleTransport.isScanning = true;
+            Ble.isScanning = true;
             break;
           case 'stop-scanning':
-            BleTransport.isScanning = false;
+            Ble.isScanning = false;
             break;
           case 'connected':
-            BleTransport.isConnected = true;
+            Ble.isConnected = true;
             break;
           case 'disconnected':
-            BleTransport.isConnected = false;
+            Ble.isConnected = false;
             break;
         }
         break;
@@ -37,7 +37,7 @@ class BleTransport extends Transport {
         // Do something
         break;
       case 'new-device':
-        BleTransport.scanObserver.next(type);
+        Ble.scanObserver.next(type);
         break;
     }
   });
@@ -45,15 +45,15 @@ class BleTransport extends Transport {
   /// TODO events and whatnot
   static listen(observer: any) {
     log('ble-verbose', 'listen...');
-    if (!BleTransport.isScanning) {
-      BleTransport.isScanning = true;
-      BleTransport.scanObserver = observer;
-      HwTransportReactNativeBle.listen();
+    if (!Ble.isScanning) {
+      Ble.isScanning = true;
+      Ble.scanObserver = observer;
+      NativeBle.listen();
     }
 
     // Provide a way to cleanup after a listen
     const unsubscribe = () => {
-      BleTransport.stop();
+      Ble.stop();
       log('ble-verbose', 'done listening.');
     };
 
@@ -63,16 +63,16 @@ class BleTransport extends Transport {
   }
 
   private static stop = (): void => {
-    BleTransport.isScanning = false;
-    HwTransportReactNativeBle.stop();
+    Ble.isScanning = false;
+    NativeBle.stop();
   };
 
   private static connect = async (_uuid: String): Promise<any> => {
     log('ble-verbose', `user connect req (${_uuid})`);
-    BleTransport.uuid = _uuid;
+    Ble.uuid = _uuid;
 
     return new Promise((resolve) => {
-      HwTransportReactNativeBle.connect(_uuid, resolve);
+      NativeBle.connect(_uuid, resolve);
     });
   };
 
@@ -80,7 +80,7 @@ class BleTransport extends Transport {
     log('ble-verbose', `user disconnect req (${id})`);
 
     return new Promise((resolve) => {
-      HwTransportReactNativeBle.disconnect(resolve);
+      NativeBle.disconnect(resolve);
     });
   };
 
@@ -88,16 +88,38 @@ class BleTransport extends Transport {
     const apduString = apdu.toString('hex');
     log('apdu', `=> ${apduString}`);
 
-    return new Promise((resolve) => {
-      HwTransportReactNativeBle.exchange(apduString, (...p) => resolve(p));
-    });
+    return new Promise((f, r) =>
+      NativeBle.exchange(apduString, Ble.promisify(f, r))
+    );
+  };
+
+  // React-Native modules use error-first Node-style callbacks
+  // we promisify them to handle inasync/await pattern instead
+  private static promisify = (resolve, reject) => (e, result) => {
+    console.log('wadus', e, result);
+    if (e) {
+      reject(Ble.mapError(e)); // TODO introduce some error mapping
+      return;
+    }
+    resolve(result);
+  };
+
+  // Map the received error string to a known (or generic) error
+  // that we can handle correctly.
+  private static mapError = (error: String) => {
+    switch (error) {
+      case 'user-pending-action':
+        return new Error('Action was pending yada yada');
+      default:
+        return new Error(error);
+    }
   };
 
   static runner = (url) => {
     // DO it dynamically
     log('ble-verbose', `request to launch runner for url ${url}`);
-    HwTransportReactNativeBle.runner(url);
+    NativeBle.runner(url);
   };
 }
 
-export default BleTransport;
+export default Ble;

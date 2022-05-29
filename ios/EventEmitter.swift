@@ -7,8 +7,10 @@
 
 import Foundation
 
+
 enum Event: String, CaseIterable {
     case parent = "BleTransport"
+    
     case newDevice = "new-device"
     case status = "status"
     case apdu = "apdu"
@@ -18,8 +20,6 @@ enum Event: String, CaseIterable {
 enum Status: String, CaseIterable {
     case startScanning = "start-scanning"
     case stopScanning = "stop-scanning"
-    case deviceConnected = "device-connected"
-    case deviceDisconnected = "device-disconnected"
     case error = "error"
 }
 
@@ -30,6 +30,7 @@ enum Action: String, CaseIterable {
     case bulkProgress = "bulk-progress"
 }
 
+/// Event payloads
 struct Payload: Codable {
     let event: String
     let type: String

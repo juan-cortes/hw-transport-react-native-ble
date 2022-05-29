@@ -6,12 +6,14 @@ import {
   View,
   Text,
   TouchableOpacity,
+  TextInput,
 } from 'react-native';
 import BleTransport from 'hw-transport-react-native-ble';
 import { log, listen } from '@ledgerhq/logs';
 
 export default function App() {
   const [entries, setEntries] = React.useState<string[]>([]);
+  const [apdu, onSetAPDU] = React.useState('e0d8000007426974636f696e');
   const [isConnected, setIsConnected] = React.useState<boolean>(false);
   const [logs, setLogs] = React.useState<string[]>([]);
 
@@ -41,14 +43,25 @@ export default function App() {
     BleTransport.disconnect().then(() => setIsConnected(false));
   }, [isConnected]);
 
+  /// Atomic exchanges are by nature async since the action may
+  /// take some time to resolve and can even be blocking.
   const onExchange = useCallback(() => {
     if (!isConnected) return;
-    const result = BleTransport.exchange('b001000000');
-    result.then(([e, apdu]) => {
-      log(e ? 'error' : 'apdu', e ? e : `<= ${apdu}`);
-    });
-  }, [isConnected]);
 
+    async function exchange() {
+      try {
+        const response = await BleTransport.exchange(apdu);
+        log('apdu', `<= ${response}`);
+      } catch (e) {
+        log('error', e);
+      }
+    }
+    exchange();
+  }, [apdu, isConnected]);
+
+  /// This triggers a long running task on the device, these tasks open a
+  /// connection with one of our script runners and (after a secure handshake)
+  /// exchange a series of APDU messages installing/uninstalling/etc binaries
   const onInstallBTC = useCallback(() => {
     if (!isConnected) return;
     let url =
@@ -62,6 +75,9 @@ export default function App() {
     BleTransport.runner(url); // Long running task init
   }, [isConnected]);
 
+  /// (cont from above) they can be started in the foreground and then backgrounded
+  /// meaning the application does not need to remain in the foreground of the phone
+  /// since all the APDU logic is handled on the native side which is not paused.
   const onUninstallBTC = useCallback(() => {
     if (!isConnected) return;
     let url =
@@ -88,6 +104,9 @@ export default function App() {
         <TouchableOpacity style={styles.btn} onPress={onExchange}>
           <Text style={!isConnected ? styles.disabled : {}}>{'Send'}</Text>
         </TouchableOpacity>
+      </View>
+      <View style={styles.button}>
+        <TextInput style={styles.input} onChangeText={onSetAPDU} value={apdu} />
       </View>
       <View style={styles.buttons}>
         <TouchableOpacity style={styles.btn} onPress={onInstallBTC}>

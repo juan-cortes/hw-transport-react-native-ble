@@ -100,15 +100,12 @@ class HwTransportReactNativeBle: RCTEventEmitter {
             if let peripheral = self.seenDevicesByUUID[uuid] {
                 DispatchQueue.main.async {
                     transport.connect(toPeripheralID: peripheral) {
-                        self.emit(Event.status, withStatus: Status.deviceDisconnected)
                         self.isConnected = false
                         callback(["Disconnected", false])
                     } success: { PeripheralIdentifier in
-                        self.emit(Event.status, withStatus: Status.deviceConnected)
                         self.isConnected = true
                         callback([NSNull(), true])
                     } failure: { e in
-                        self.emit(Event.status, withStatus: Status.deviceDisconnected)
                         self.isConnected = false
                         callback([String(describing: e), false])
                     }
