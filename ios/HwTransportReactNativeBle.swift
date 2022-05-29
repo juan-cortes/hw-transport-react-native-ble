@@ -106,7 +106,7 @@ class HwTransportReactNativeBle: RCTEventEmitter {
     /// Connection events are handled on the JavaScript side to keep a state that is accessible from LLM
     @objc
     func connect(_ uuid: String, callback: @escaping RCTResponseSenderBlock) -> Void {
-        if let transport = transport, !isConnected {
+        if let transport = transport, !self.isConnected {
             if let peripheral = self.seenDevicesByUUID[uuid] {
                 DispatchQueue.main.async {
                     transport.connect(toPeripheralID: peripheral) {
@@ -120,16 +120,19 @@ class HwTransportReactNativeBle: RCTEventEmitter {
                         callback([String(describing: e), false])
                     }
                 }
+            } else {
+                print("unknown device")
             }
         }
     }
     
     
     @objc
-    func disconnect(callback: @escaping RCTResponseSenderBlock) -> Void {
+    func disconnect(_ callback: @escaping RCTResponseSenderBlock) -> Void {
         if let transport = transport, isConnected {
             DispatchQueue.main.async { /// Seems like I'm going to have to do this all the time
                 transport.disconnect(immediate: true, completion: { _ in
+                    self.isConnected = false
                     callback([NSNull(), true])
                 })
             }

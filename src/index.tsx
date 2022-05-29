@@ -9,7 +9,6 @@ class Ble extends Transport {
   static uuid: String = ''; // We probably need more information than the uuid
   static scanObserver: any;
   static isScanning: Boolean = false;
-  static isConnected: Boolean = false;
 
   static listeners = EventEmitter?.addListener('BleTransport', (rawEvent) => {
     const { event, type, data } = JSON.parse(rawEvent);
@@ -70,20 +69,15 @@ class Ble extends Transport {
   };
 
   private static connect = async (_uuid: String): Promise<any> => {
-    log('ble-verbose', `user connect req (${_uuid})`);
+    log('ble-verbose', `connecting (${_uuid})`);
     Ble.uuid = _uuid;
 
-    return new Promise((resolve) => {
-      NativeBle.connect(_uuid, resolve);
-    });
+    return new Promise((f, r) => NativeBle.connect(_uuid, Ble.promisify(f, r)));
   };
 
   static disconnect = (id: any): Promise<any> => {
-    log('ble-verbose', `user disconnect req (${id})`);
-
-    return new Promise((resolve) => {
-      NativeBle.disconnect(resolve);
-    });
+    log('ble-verbose', `disconnecting (${id})`);
+    return new Promise((f, r) => NativeBle.disconnect(Ble.promisify(f, r)));
   };
 
   static exchange = (apdu: Buffer): Promise<any> => {
