@@ -164,6 +164,11 @@ class HwTransportReactNativeBle: RCTEventEmitter {
         }
     }
     
+    @objc
+    func onJSStateChange(_ awake: Bool) -> Void {
+        EventEmitter.sharedInstance.onJSAwakeChanged(awake: awake)
+    }
+
     @objc open override func supportedEvents() -> [String] {
         return EventEmitter.sharedInstance.allEvents
     }
