@@ -122,13 +122,13 @@ export default function App() {
       </View>
       <Text style={styles.header}>{'Visible devices (click to connect)'}</Text>
       <View style={styles.wrapper}>
-        {entries.map((e) => (
+        {entries.map(({ uuid, name }) => (
           <TouchableOpacity
-            key={e}
+            key={uuid}
             style={[styles.btn, { flex: 0 }]}
-            onPress={() => onConnect(e)}
+            onPress={() => onConnect(uuid)}
           >
-            <Text>{e}</Text>
+            <Text>{`${name} - ${uuid}`}</Text>
           </TouchableOpacity>
         ))}
       </View>

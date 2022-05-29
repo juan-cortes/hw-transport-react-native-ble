@@ -13,7 +13,7 @@ class Runner: NSObject  {
     var transport : BleTransport
     var endpoint : URL
     
-    var onEmit: ((Action, String)->Void)?
+    var onEmit: ((Action, ExtraData?)->Void)?
     var onDone: ((String)->Void)?
     
     var isRunning: Bool = false
@@ -33,7 +33,7 @@ class Runner: NSObject  {
     public init (
         _ transport : BleTransport,
         endpoint : URL,
-        onEvent: @escaping ((Action, String)->Void),
+        onEvent: @escaping ((Action, ExtraData?)->Void),
         onDone: ((String)->Void)?
     ) {
         self.transport = transport
@@ -50,17 +50,17 @@ class Runner: NSObject  {
     private func maybeEmitEvent(_ apdu : String, fromHSM: Bool = true) {
         if fromHSM && apdu.starts(with: "e051") {
             self.isUserBlocked = true
-            self.onEmit!(Action.permissionRequested, "")
+            self.onEmit!(Action.permissionRequested, nil)
         } else if !fromHSM && self.isUserBlocked {
             self.isUserBlocked = false
             if apdu.suffix(4) == "9000" {
-                self.onEmit!(Action.permissionGranted, "")
+                self.onEmit!(Action.permissionGranted, nil)
             } else {
-                self.onEmit!(Action.permissionRefused, "")
+                self.onEmit!(Action.permissionRefused, nil)
             }
         } else if self.isInBulkMode {
             let progress = ((Double(self.APDUMaxCount-self.APDUQueue.count))/Double(self.APDUMaxCount))*100
-            self.onEmit!(Action.bulkProgress, String(progress))
+            self.onEmit!(Action.bulkProgress, ExtraData(progress: progress))
         }
         
     }
@@ -130,6 +130,7 @@ class Runner: NSObject  {
                     self.handleNextAPDU()
                 } else {
                     // Send message back to the script runner
+                    // Probably a good idea to move this to an encoded string
                     let response = "{\"nonce\":\(self.HSMNonce),\"response\":\"success\",\"data\":\"\(data)\"}"
                     self.socket!.write(string: response)
                 }

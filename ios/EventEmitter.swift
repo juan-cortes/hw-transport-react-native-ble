@@ -34,7 +34,19 @@ enum Action: String, CaseIterable {
 struct Payload: Codable {
     let event: String
     let type: String
-    let data: String?
+    let data: ExtraData?
+}
+
+struct ExtraData: Codable {
+    var msg: String?
+
+    /// Device extras
+    var uuid: String?
+    var name: String?
+    var service: String?
+    
+    /// Bulk action extras
+    var progress: Double?
 }
 
 class EventEmitter {
@@ -64,7 +76,7 @@ class EventEmitter {
         }
     }
     
-    func dispatch(event: Event, type: String, data: String?) {
+    func dispatch(event: Event, type: String, data: ExtraData?) {
         let newPayload = Payload(event: event.rawValue, type: type, data: data)
         
         if self.queuedEvents.count > 0 {

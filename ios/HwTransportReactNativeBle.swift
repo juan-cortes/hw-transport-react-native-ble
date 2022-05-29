@@ -2,6 +2,7 @@ import Foundation
 import BleTransport
 import Bluejay
 
+
 @objc(HwTransportReactNativeBle)
 class HwTransportReactNativeBle: RCTEventEmitter {
     var transport: BleTransport? = nil
@@ -19,24 +20,12 @@ class HwTransportReactNativeBle: RCTEventEmitter {
     }
     
     /// Emit an action from a runner (this is too vague though, figure it out)
-    private func emitFromRunner(_ type: Action, withPayload: String) -> Void {
+    private func emitFromRunner(_ type: Action, withData: ExtraData?) -> Void {
         EventEmitter.sharedInstance.dispatch(
             event: Event.task,
             type: type.rawValue,
-            data: withPayload
+            data: withData
         )
-    }
-    /// Emit a status update, mostly flags
-    private func emit(_ event: Event, withStatus: Status) -> Void {
-        emit(event, withPayload: withStatus.rawValue)
-    }
-    /// Emit an event with a payload, such as finding a new device
-    private func emit(_ event: Event, withPayload: String) -> Void {
-        EventEmitter.sharedInstance.dispatch(event: event, type: withPayload, data: nil)
-    }
-    
-    private func emit(_ event: Event, type: String, andData: String) -> Void {
-        EventEmitter.sharedInstance.dispatch(event: event, type: type, data: andData)
     }
     
     private func blackHole (_ : String) -> Void {}
@@ -49,7 +38,14 @@ class HwTransportReactNativeBle: RCTEventEmitter {
     func listen() -> Void {
         if let transport = transport, transport.isBluetoothAvailable {
             self.seenDevicesByUUID = [:]
-            self.emit(Event.status, withStatus: Status.startScanning)
+            
+            /// Notify the observer about starting the scan
+            EventEmitter.sharedInstance.dispatch(
+                event: Event.status,
+                type: Status.startScanning.rawValue,
+                data: nil
+            )
+            
             DispatchQueue.main.async { /// Seems like I'm going to have to do this all the time
                 transport.scan { [weak self] discoveries in
                     if discoveries.count != self!.lastSeenSize {
@@ -57,13 +53,27 @@ class HwTransportReactNativeBle: RCTEventEmitter {
                         
                         /// Found devices are handled via events since we need more than one call
                         discoveries.forEach{
-                            let uuid = String(describing: $0.peripheral.uuid)
-                            self?.seenDevicesByUUID[uuid] = $0.peripheral
-                            self?.emit(Event.newDevice, type: uuid, andData: $0.peripheral.name)
+                            self?.seenDevicesByUUID[$0.peripheral.uuid.uuidString] = $0.peripheral
+
+                            /// Emit a new device event with all the required information
+                            EventEmitter.sharedInstance.dispatch(
+                                event: Event.newDevice,
+                                type: $0.peripheral.uuid.uuidString,
+                                data: ExtraData(
+                                    uuid: $0.peripheral.uuid.uuidString,
+                                    name: $0.peripheral.name,
+                                    service: $0.serviceUUID.uuidString
+                                )
+                            )
                         }
                     }
                 } stopped: {
-                    self.emit(Event.status, withStatus: Status.stopScanning)
+                    /// Notify the observer about stop the scan
+                    EventEmitter.sharedInstance.dispatch(
+                        event: Event.status,
+                        type: Status.stopScanning.rawValue,
+                        data: nil
+                    )
                 }
             }
         }

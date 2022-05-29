@@ -13,7 +13,7 @@ class Ble extends Transport {
 
   static listeners = EventEmitter?.addListener('BleTransport', (rawEvent) => {
     const { event, type, data } = JSON.parse(rawEvent);
-    log('ble', JSON.stringify({ type, data }));
+    log('ble', JSON.stringify({ type }));
 
     switch (event) {
       case 'status':
@@ -25,19 +25,13 @@ class Ble extends Transport {
           case 'stop-scanning':
             Ble.isScanning = false;
             break;
-          case 'connected':
-            Ble.isConnected = true;
-            break;
-          case 'disconnected':
-            Ble.isConnected = false;
-            break;
         }
         break;
       case 'task':
         // Do something
         break;
       case 'new-device':
-        Ble.scanObserver.next(type);
+        Ble.scanObserver.next(data); // Polyfill with device data based on serviceUUID?
         break;
     }
   });
