@@ -75,8 +75,8 @@ class Ble extends Transport {
     return new Promise((f, r) => NativeBle.connect(_uuid, Ble.promisify(f, r)));
   };
 
-  static disconnect = (id: any): Promise<any> => {
-    log('ble-verbose', `disconnecting (${id})`);
+  static disconnect = (): Promise<any> => {
+    log('ble-verbose', `disconnecting`); // Thought about multi devices?
     return new Promise((f, r) => NativeBle.disconnect(Ble.promisify(f, r)));
   };
 

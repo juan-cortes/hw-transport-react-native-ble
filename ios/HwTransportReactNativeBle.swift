@@ -111,7 +111,7 @@ class HwTransportReactNativeBle: RCTEventEmitter {
                 DispatchQueue.main.async {
                     transport.connect(toPeripheralID: peripheral) {
                         self.isConnected = false
-                        callback(["Disconnected", false])
+                        callback(["disconnected", false])
                     } success: { PeripheralIdentifier in
                         self.isConnected = true
                         callback([NSNull(), true])
@@ -121,7 +121,7 @@ class HwTransportReactNativeBle: RCTEventEmitter {
                     }
                 }
             } else {
-                print("unknown device")
+                callback(["disconnected", false]) // Shouldnt be a disconnect but another error
             }
         }
     }

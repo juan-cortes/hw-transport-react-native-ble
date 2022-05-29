@@ -35,12 +35,18 @@ export default function App() {
   }, []);
 
   const onConnect = useCallback((uuid) => {
-    BleTransport.connect(uuid).then(() => setIsConnected(true));
+    BleTransport.connect(uuid).then(() => {
+      log('ble-verbose', `connected`);
+      setIsConnected(true);
+    });
   }, []);
 
   const onDisconnect = useCallback(() => {
     if (!isConnected) return;
-    BleTransport.disconnect().then(() => setIsConnected(false));
+    BleTransport.disconnect().then(() => {
+      log('ble-verbose', `disconnected`); // TODO move to transport?
+      setIsConnected(false);
+    });
   }, [isConnected]);
 
   /// Atomic exchanges are by nature async since the action may
@@ -93,7 +99,14 @@ export default function App() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.header}>{'Demo of the BleTransport RN Module'}</Text>
+      <Text
+        style={[
+          styles.header,
+          { backgroundColor: isConnected ? '#e6f2ca' : '#F3BFC3' },
+        ]}
+      >
+        {'Demo of the BleTransport RN Module'}
+      </Text>
       <View style={styles.buttons}>
         <TouchableOpacity style={styles.btn} onPress={onStart}>
           <Text>{'Scan'}</Text>
