@@ -1,4 +1,3 @@
-import React from 'react';
 import { NativeModules } from 'react-native';
 import Transport from '@ledgerhq/hw-transport';
 import { log } from '@ledgerhq/logs';
@@ -11,7 +10,7 @@ class Ble extends Transport {
   static appStateSubscription: any;
   static uuid: String = ''; // We probably need more information than the uuid
   static scanObserver: any;
-  static isScanning: Boolean = false;  
+  static isScanning: Boolean = false;
 
   static listeners = EventEmitter?.addListener('BleTransport', (rawEvent) => {
     const { event, type, data } = JSON.parse(rawEvent);
@@ -109,7 +108,7 @@ class Ble extends Transport {
       case 'user-pending-action':
         return new Error('Action was pending yada yada');
       default:
-        return new Error('generic error');
+        return new Error('generic');
     }
   };
 

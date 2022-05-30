@@ -19,7 +19,6 @@ export default function App() {
   const [logs, setLogs] = React.useState<string[]>([]);
 
   useEffect(() => {
-    console.log('wadus', AppState.addListener);
     AppState.addEventListener('change', () => (state) => {
       console.log('NativeBridge JS appstate changed', state);
       if (state === 'active') {
@@ -37,7 +36,6 @@ export default function App() {
   }, []);
 
   const onStart = useCallback(() => {
-    BleTransport.listenToAppState();
     setEntries([]);
     const sub = new Observable((s) => BleTransport.listen(s)).subscribe({
       next: (entry) =>

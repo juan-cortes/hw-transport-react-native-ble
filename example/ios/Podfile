@@ -5,7 +5,11 @@ platform :ios, '13.0'
 
 target 'HwTransportReactNativeBleExample' do
   config = use_native_modules!
-  use_react_native!(:path => config["reactNativePath"])
+  use_react_native!(
+    :path => config[:reactNativePath],
+    # to enable hermes on iOS, change `false` to `true` and then install pods
+    :hermes_enabled => false
+  )
   use_frameworks!
 
   pod 'hw-transport-react-native-ble', :path => '../..'
@@ -14,12 +18,9 @@ target 'HwTransportReactNativeBleExample' do
   pod 'BleTransport', :git => 'https://github.com/LedgerHQ/ios-ble.git'
   pod 'Bluejay', :git => 'https://github.com/DantePuglisi/bluejay.git', branch: 'fail-when-wrong-characteristic-property'
 
-  # Enables Flipper.
-  #
-  # Note that if you have use_frameworks! enabled, Flipper will not work and
-  # you should disable these next few lines.
-#  use_flipper!({ 'Flipper' => '0.80.0' })
+#  use_flipper!()
   post_install do |installer|
-#    flipper_post_install(installer)
+    react_native_post_install(installer)
+    __apply_Xcode_12_5_M1_post_install_workaround(installer)
   end
 end
