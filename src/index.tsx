@@ -12,10 +12,22 @@ class Ble extends Transport {
   static scanObserver: any;
   static isScanning: Boolean = false;
 
+  id: String;
+  appStateSubscription: any;
+  constructor(
+    deviceId: String // TODO to be made a Device
+    // deviceModel: DeviceModel
+  ) {
+    super();
+    this.id = deviceId;
+    this.listenToAppStateChanges(); // TODO cleanup chores, keep track of instances
+    log('ble-verbose', `BleTransport(${String(this.id)}) new instance`);
+  }
+
   // To be called from live-common-setup (?) and removed afterwards?
   // Not sure whether we need to cleanup or not if only invoked once
-  static listenToAppStateChanges = () => {
-    return AppState.addEventListener('change', (state) => {
+  private listenToAppStateChanges = () => {
+    this.appStateSubscription = AppState.addEventListener('change', (state) => {
       switch (state) {
         case 'active':
           NativeBle.onAppStateChange(true);
@@ -84,19 +96,29 @@ class Ble extends Transport {
     NativeBle.stop();
   };
 
-  private static connect = async (_uuid: String): Promise<any> => {
+  /// Attempt to connect to a device
+  static open = async (_uuid: String): Promise<any> => {
     log('ble-verbose', `connecting (${_uuid})`);
     Ble.uuid = _uuid;
 
-    return new Promise((f, r) => NativeBle.connect(_uuid, Ble.promisify(f, r)));
+    NativeBle.connect(_uuid, (error) => {
+      if (error) {
+        log('ble-verbose', `failed to connect to device`);
+        throw new Error('failed!');
+      } else {
+        log('ble-verbose', `connected to (${_uuid})`);
+        return new Ble(_uuid); // TODO pass the model too?
+      }
+    });
   };
 
+  /// Globally disconnect from a connected device
   static disconnect = (): Promise<any> => {
     log('ble-verbose', `disconnecting`); // Thought about multi devices?
     return new Promise((f, r) => NativeBle.disconnect(Ble.promisify(f, r)));
   };
 
-  static exchange = (apdu: Buffer): Promise<any> => {
+  exchange = (apdu: Buffer): Promise<any> => {
     const apduString = apdu.toString('hex');
     log('apdu', `=> ${apduString}`);
 
