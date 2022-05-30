@@ -9,6 +9,10 @@ class HwTransportReactNativeBle: RCTEventEmitter {
     var isConnected: Bool = false
     var runner: Runner?
     
+    @objc override static func requiresMainQueueSetup() -> Bool {
+        return false
+    }
+
     override init() {
         let configuration = BleTransportConfiguration(services: [BleService(serviceUUID: "13D63400-2C97-0004-0000-4C6564676572",
                                                                             notifyUUID: "13d63400-2c97-0004-0001-4c6564676572",

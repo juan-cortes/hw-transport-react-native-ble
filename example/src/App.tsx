@@ -106,7 +106,7 @@ export default function App() {
           { backgroundColor: isConnected ? '#e6f2ca' : '#F3BFC3' },
         ]}
       >
-        {'Demo of the BleTransport RN Module'}
+        {'BleTransport RN Module'}
       </Text>
       <View style={styles.buttons}>
         <TouchableOpacity style={styles.btn} onPress={onStart}>
