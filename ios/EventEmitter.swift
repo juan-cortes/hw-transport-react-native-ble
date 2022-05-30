@@ -69,7 +69,7 @@ class EventEmitter {
         self.eventEmitter = eventEmitter
     }
     
-    func onJSAwakeChanged(awake: Bool) {
+    func onAppStateChange(awake: Bool) {
         self.isJavaScriptAvailable = awake
         if awake {
             self.consumeEventQueue()

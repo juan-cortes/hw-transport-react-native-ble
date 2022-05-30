@@ -97,8 +97,8 @@ class Runner: NSObject  {
                         }
                         self.handleNextAPDU();
                     }
-                } catch _ as NSError {
-                    // self.print("Failed to load: \(error.localizedDescription)")
+                } catch {
+                    print("Failed to load: \(error.localizedDescription)")
                 }
                 break
             default:

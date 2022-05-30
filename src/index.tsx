@@ -1,4 +1,4 @@
-import { NativeModules } from 'react-native';
+import { AppState, NativeModules } from 'react-native';
 import Transport from '@ledgerhq/hw-transport';
 import { log } from '@ledgerhq/logs';
 import EventEmitter from './EventEmitter';
@@ -11,6 +11,21 @@ class Ble extends Transport {
   static uuid: String = ''; // We probably need more information than the uuid
   static scanObserver: any;
   static isScanning: Boolean = false;
+
+  // To be called from live-common-setup (?) and removed afterwards?
+  // Not sure whether we need to cleanup or not if only invoked once
+  static listenToAppStateChanges = () => {
+    return AppState.addEventListener('change', (state) => {
+      switch (state) {
+        case 'active':
+          NativeBle.onAppStateChange(true);
+          break;
+        case 'inactive':
+          NativeBle.onAppStateChange(false);
+          break;
+      }
+    });
+  };
 
   static listeners = EventEmitter?.addListener('BleTransport', (rawEvent) => {
     const { event, type, data } = JSON.parse(rawEvent);
@@ -93,7 +108,6 @@ class Ble extends Transport {
   // React-Native modules use error-first Node-style callbacks
   // we promisify them to handle inasync/await pattern instead
   private static promisify = (resolve, reject) => (e, result) => {
-    console.log('wadus', e, result);
     if (e) {
       reject(Ble.mapError(e)); // TODO introduce some error mapping
       return;

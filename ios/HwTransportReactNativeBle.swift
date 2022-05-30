@@ -106,22 +106,26 @@ class HwTransportReactNativeBle: RCTEventEmitter {
     /// Connection events are handled on the JavaScript side to keep a state that is accessible from LLM
     @objc
     func connect(_ uuid: String, callback: @escaping RCTResponseSenderBlock) -> Void {
+        var consumedCallback: Bool = false
         if let transport = transport, !self.isConnected {
             if let peripheral = self.seenDevicesByUUID[uuid] {
                 DispatchQueue.main.async {
                     transport.connect(toPeripheralID: peripheral) {
-                        self.isConnected = false
-                        callback(["disconnected", false])
+                        //
                     } success: { PeripheralIdentifier in
                         self.isConnected = true
-                        callback([NSNull(), true])
+                        if !consumedCallback {
+                            consumedCallback = true
+                            callback([NSNull(), true])
+                        }
                     } failure: { e in
                         self.isConnected = false
-                        callback([String(describing: e), false])
+                        if !consumedCallback {
+                            consumedCallback = true
+                            callback([String(describing: e), false])
+                        }
                     }
                 }
-            } else {
-                callback(["disconnected", false]) // Shouldnt be a disconnect but another error
             }
         }
     }
@@ -130,10 +134,14 @@ class HwTransportReactNativeBle: RCTEventEmitter {
     @objc
     func disconnect(_ callback: @escaping RCTResponseSenderBlock) -> Void {
         if let transport = transport, isConnected {
+            var consumedCallback = false
             DispatchQueue.main.async { /// Seems like I'm going to have to do this all the time
                 transport.disconnect(immediate: true, completion: { _ in
                     self.isConnected = false
-                    callback([NSNull(), true])
+                    if !consumedCallback {
+                        consumedCallback = true
+                        callback([NSNull(), true])
+                    }
                 })
             }
         }
@@ -142,11 +150,15 @@ class HwTransportReactNativeBle: RCTEventEmitter {
     @objc
     func exchange(_ apdu: String, callback: @escaping RCTResponseSenderBlock) -> Void {
         if let transport = transport {
+            var consumedCallback = false
             DispatchQueue.main.async { /// Seems like I'm going to have to do this all the time
                 transport.exchange(apdu: APDU(raw: apdu)) { result in
                     switch result {
                     case .success(let response):
-                        callback([NSNull(), response])
+                        if !consumedCallback {
+                            callback([NSNull(), response])
+                            consumedCallback = true
+                        }
                     case .failure(let error):
                         switch error {
                         case .readError(let description):
@@ -165,8 +177,8 @@ class HwTransportReactNativeBle: RCTEventEmitter {
     }
     
     @objc
-    func onJSStateChange(_ awake: Bool) -> Void {
-        EventEmitter.sharedInstance.onJSAwakeChanged(awake: awake)
+    func onAppStateChange(_ awake: Bool) -> Void {
+        EventEmitter.sharedInstance.onAppStateChange(awake: awake)
     }
 
     @objc open override func supportedEvents() -> [String] {

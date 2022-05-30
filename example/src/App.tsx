@@ -7,29 +7,18 @@ import {
   Text,
   TouchableOpacity,
   TextInput,
-  AppState,
 } from 'react-native';
 import BleTransport from 'hw-transport-react-native-ble';
 import { log, listen } from '@ledgerhq/logs';
 
 export default function App() {
   const [entries, setEntries] = React.useState<string[]>([]);
-  const [apdu, onSetAPDU] = React.useState('e0d8000007426974636f696e');
+  const [apdu, onSetAPDU] = React.useState('b001000000');
   const [isConnected, setIsConnected] = React.useState<boolean>(false);
   const [logs, setLogs] = React.useState<string[]>([]);
 
   useEffect(() => {
-    AppState.addEventListener('change', () => (state) => {
-      console.log('NativeBridge JS appstate changed', state);
-      if (state === 'active') {
-        console.log('NativeBridge JS came back from the dead');
-        // NativeBle.onJSStateChange(true);
-      } else if (state === 'background') {
-        console.log('NativeBridge JS went to the background');
-        // NativeBle.onJSStateChange(false);
-      }
-    });
-
+    BleTransport.listenToAppStateChanges();
     listen(({ type, message }) => {
       setLogs((logs) => [JSON.stringify({ type, message }), ...logs]);
     });
