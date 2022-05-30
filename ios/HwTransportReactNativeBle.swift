@@ -37,8 +37,10 @@ class HwTransportReactNativeBle: RCTEventEmitter {
     @objc
     func listen() -> Void {
         if let transport = transport, transport.isBluetoothAvailable {
+            /// To allow for subsequent scans
             self.seenDevicesByUUID = [:]
-            
+            self.lastSeenSize = 0
+
             /// Notify the observer about starting the scan
             EventEmitter.sharedInstance.dispatch(
                 event: Event.status,
@@ -106,7 +108,7 @@ class HwTransportReactNativeBle: RCTEventEmitter {
     /// Connection events are handled on the JavaScript side to keep a state that is accessible from LLM
     @objc
     func connect(_ uuid: String, callback: @escaping RCTResponseSenderBlock) -> Void {
-        var consumedCallback: Bool = false
+        let wrappedCallback = singleUseCallback(callback)
         if let transport = transport, !self.isConnected {
             if let peripheral = self.seenDevicesByUUID[uuid] {
                 DispatchQueue.main.async {
@@ -114,61 +116,64 @@ class HwTransportReactNativeBle: RCTEventEmitter {
                         //
                     } success: { PeripheralIdentifier in
                         self.isConnected = true
-                        if !consumedCallback {
-                            consumedCallback = true
-                            callback([NSNull(), true])
-                        }
+                        wrappedCallback([NSNull(), true])
                     } failure: { e in
                         self.isConnected = false
-                        if !consumedCallback {
-                            consumedCallback = true
-                            callback([String(describing: e), false])
-                        }
+                        wrappedCallback([String(describing: e), false])
                     }
                 }
             }
         }
     }
-    
-    
-    @objc
-    func disconnect(_ callback: @escaping RCTResponseSenderBlock) -> Void {
-        if let transport = transport, isConnected {
-            var consumedCallback = false
-            DispatchQueue.main.async { /// Seems like I'm going to have to do this all the time
-                transport.disconnect(immediate: true, completion: { _ in
-                    self.isConnected = false
-                    if !consumedCallback {
-                        consumedCallback = true
-                        callback([NSNull(), true])
-                    }
-                })
+
+    /// With the introduction of a hard crash on react native side if the callback was invoked multiple times we now
+    /// need to wrap those callbacks to prevent it
+    func singleUseCallback(_ callback: @escaping RCTResponseSenderBlock) -> RCTResponseSenderBlock {
+        var calledOnce: Bool = false
+        return { (parameters) -> Void in
+            if !calledOnce {
+                calledOnce = true
+                return callback(parameters)
+            } else {
+                print("preventing second invoke")
             }
         }
     }
     
     @objc
+    func disconnect(_ callback: @escaping RCTResponseSenderBlock) -> Void {
+        if let transport = transport, isConnected {
+            let wrappedCallback = singleUseCallback(callback)
+            DispatchQueue.main.async { /// Seems like I'm going to have to do this all the time
+                transport.disconnect(immediate: true, completion: { _ in
+                    self.isConnected = false
+                    wrappedCallback([NSNull(), true])
+                })
+            }
+        }
+    }
+    
+
+    
+    @objc
     func exchange(_ apdu: String, callback: @escaping RCTResponseSenderBlock) -> Void {
         if let transport = transport {
-            var consumedCallback = false
+            let wrappedCallback = singleUseCallback(callback)
             DispatchQueue.main.async { /// Seems like I'm going to have to do this all the time
                 transport.exchange(apdu: APDU(raw: apdu)) { result in
                     switch result {
                     case .success(let response):
-                        if !consumedCallback {
-                            callback([NSNull(), response])
-                            consumedCallback = true
-                        }
+                        wrappedCallback([NSNull(), response])
                     case .failure(let error):
                         switch error {
                         case .readError(let description):
-                            callback([ "read error \(String(describing:description))"])
+                            wrappedCallback([ "read error \(String(describing:description))"])
                         case .writeError(let description):
-                            callback([ "write error \(String(describing:description))"])
+                            wrappedCallback([ "write error \(String(describing:description))"])
                         case .pendingActionOnDevice:
-                            callback([ "pending action"])
+                            wrappedCallback([ "pending action"])
                         default:
-                            callback([ "another action"])
+                            wrappedCallback([ "another action"])
                         }
                     }
                 }
