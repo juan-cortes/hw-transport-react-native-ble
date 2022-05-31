@@ -67,6 +67,7 @@ export default function App() {
   /// exchange a series of APDU messages installing/uninstalling/etc binaries
   const onInstallBTC = useCallback(() => {
     if (!uuid) return;
+    log('ble-verbose', 'Requesting a long running task');
     let url =
       'wss://scriptrunner.api.live.ledger.com/update/install?' +
       'targetId=855638020' +
@@ -76,10 +77,11 @@ export default function App() {
       '&hash=8bf06e39e785ba5a8cf27bfa95036ccab02d756f8b8f44c3c3137fd035d5cb0c' +
       '&livecommonversion=22.0.0';
 
+    // Long running task init, we can't rely on the completion, it's the completion of the request
     (async function exchange() {
-      await withDevice(uuid)((_) => {
-        BleTransport.runner(url); // Long running task init
-      }).toPromise();
+      await withDevice(uuid)((_) =>
+        from([BleTransport.runner(url)])
+      ).toPromise();
     })();
   }, [uuid]);
 
@@ -88,6 +90,7 @@ export default function App() {
   /// since all the APDU logic is handled on the native side which is not paused.
   const onUninstallBTC = useCallback(() => {
     if (!uuid) return;
+    log('ble-verbose', 'Requesting a long running task');
     let url =
       'wss://scriptrunner.api.live.ledger.com/update/install?' +
       'targetId=855638020' +
@@ -97,10 +100,11 @@ export default function App() {
       '&hash=8bf06e39e785ba5a8cf27bfa95036ccab02d756f8b8f44c3c3137fd035d5cb0c' +
       '&livecommonversion=22.0.0';
 
+    // Long running task init, we can't rely on the completion, it's the completion of the request
     (async function exchange() {
-      await withDevice(uuid)((_) => {
-        BleTransport.runner(url); // Long running task init
-      }).toPromise();
+      await withDevice(uuid)((_) =>
+        from([BleTransport.runner(url)])
+      ).toPromise();
     })();
   }, [uuid]);
 
