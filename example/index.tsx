@@ -9,10 +9,7 @@ import { setDeviceMode } from '@ledgerhq/live-common/lib/hw/actions/app';
 setDeviceMode('polling');
 registerTransportModule({
   id: 'ble',
-  open: (id) => {
-    console.log('trying to open');
-    return BleTransport.open(id);
-  },
+  open: (id) => BleTransport.open(id),
   disconnect: (id) => BleTransport.disconnect(id),
 });
 

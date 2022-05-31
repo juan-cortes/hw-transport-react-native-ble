@@ -19,10 +19,10 @@ export default function App() {
   const [logs, setLogs] = React.useState<string[]>([]);
 
   useEffect(() => {
-    console.log('log1');
-    listen(({ type, message }) => {
-      console.log('log');
-      setLogs((logs) => [JSON.stringify({ type, message }), ...logs]);
+    console.log('wadus from App.tsx', listen);
+    listen((l) => {
+      console.log(l);
+      // setLogs((logs) => [JSON.stringify({ type, message }), ...logs]);
     });
   }, []);
 
@@ -45,17 +45,18 @@ export default function App() {
   }, []);
 
   /// Atomic exchanges are by nature async since the action may
-  /// take some time to resolve and can even be blocking.
+  /// take some time to resolve and can even be blocking, however, since this is
+  /// using live-common and the device access paradigm we defer the connection
+  /// opening to the `withDevice` call, as well as the device disconnection when
+  /// the task is completed.
   const onExchange = useCallback(() => {
     if (!uuid) return;
 
     async function exchange() {
       try {
-        const result = await withDevice(uuid)((t) => {
-          console.log('wadus overlord', t);
+        await withDevice(uuid)((t) => {
           return from(t.exchange(apdu));
         }).toPromise();
-        console.log('wadus overlord', result);
       } catch (e) {
         log('error', e);
       }

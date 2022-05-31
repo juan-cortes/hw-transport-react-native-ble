@@ -1,10 +1,18 @@
 import { AppState, NativeModules } from 'react-native';
 import Transport from '@ledgerhq/hw-transport';
-import { log } from '@ledgerhq/logs';
+import { listen, log } from '@ledgerhq/logs';
 import EventEmitter from './EventEmitter';
 
 const NativeBle = NativeModules.HwTransportReactNativeBle;
 
+/**
+ * Allows for us to reuse a transport instance instead of instantiating a new
+ * one. This should also prevent race conditions since we would know if there
+ * is an action pending on the device via the internal state of the transport.
+ */
+debugger
+console.log('wadus from App.tsx', listen);
+let transportsCache: { [key: string]: any } = {};
 class Ble extends Transport {
   static appState: String = 'background';
   static appStateSubscription: any;
@@ -97,34 +105,55 @@ class Ble extends Transport {
   };
 
   /// Attempt to connect to a device
-  static open = async (_uuid: String): Promise<any> => {
-    log('ble-verbose', `connecting (${_uuid})`);
-    Ble.uuid = _uuid;
+  static open = async (_uuid: string): Promise<any> => {
+    if (transportsCache[_uuid]) {
+      log('ble-verbose', 'Transport in cache, using that.');
+      return transportsCache[_uuid];
+    }
 
-    NativeBle.connect(_uuid, (error) => {
-      if (error) {
-        log('ble-verbose', `failed to connect to device`);
-        throw new Error('failed!');
-      } else {
-        log('ble-verbose', `connected to (${_uuid})`);
-        return new Ble(_uuid); // TODO pass the model too?
-      }
+    log('ble-verbose', `connecting (${_uuid})`);
+
+    return new Promise((resolve, reject) => {
+      NativeBle.connect(
+        _uuid,
+        Ble.promisify(
+          () => {
+            log('ble-verbose', `connected to (${_uuid})`);
+            const transport = new Ble(_uuid);
+            transportsCache[_uuid] = transport;
+            resolve(transport);
+          },
+          () => {
+            log('ble-verbose', `failed to connect to device`);
+            reject(new Error('failed!')); // Use error?
+          }
+        )
+      );
     });
   };
 
   /// Globally disconnect from a connected device
   static disconnect = (): Promise<any> => {
     log('ble-verbose', `disconnecting`); // Thought about multi devices?
-    return new Promise((f, r) => NativeBle.disconnect(Ble.promisify(f, r)));
+    return new Promise((f, r) =>
+      NativeBle.disconnect(Ble.promisify(f, r))
+    ).then((result) => {
+      transportsCache = {};
+      return result;
+    });
   };
 
+  /// Exchange an apdu with a device
   exchange = (apdu: Buffer): Promise<any> => {
     const apduString = apdu.toString('hex');
     log('apdu', `=> ${apduString}`);
 
     return new Promise((f, r) =>
       NativeBle.exchange(apduString, Ble.promisify(f, r))
-    );
+    ).then((response) => {
+      log('apdu', `<= ${response}`);
+      return response;
+    });
   };
 
   // React-Native modules use error-first Node-style callbacks
