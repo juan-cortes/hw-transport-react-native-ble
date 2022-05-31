@@ -19,10 +19,8 @@ export default function App() {
   const [logs, setLogs] = React.useState<string[]>([]);
 
   useEffect(() => {
-    console.log('wadus from App.tsx', listen);
-    listen((l) => {
-      console.log(l);
-      // setLogs((logs) => [JSON.stringify({ type, message }), ...logs]);
+    listen(({ type, message }) => {
+      setLogs((logs) => [JSON.stringify({ type, message }), ...logs]);
     });
   }, []);
 
@@ -77,7 +75,12 @@ export default function App() {
       '&firmwareKey=nanox%2F2.0.2-2%2Fbitcoin%2Fapp_2.0.4_key' +
       '&hash=8bf06e39e785ba5a8cf27bfa95036ccab02d756f8b8f44c3c3137fd035d5cb0c' +
       '&livecommonversion=22.0.0';
-    BleTransport.runner(url); // Long running task init
+
+    (async function exchange() {
+      await withDevice(uuid)((_) => {
+        BleTransport.runner(url); // Long running task init
+      }).toPromise();
+    })();
   }, [uuid]);
 
   /// (cont from above) they can be started in the foreground and then backgrounded
@@ -93,7 +96,12 @@ export default function App() {
       '&firmwareKey=nanox%2F2.0.2-2%2Fbitcoin%2Fapp_2.0.4_del_key' +
       '&hash=8bf06e39e785ba5a8cf27bfa95036ccab02d756f8b8f44c3c3137fd035d5cb0c' +
       '&livecommonversion=22.0.0';
-    BleTransport.runner(url); // Long running task init
+
+    (async function exchange() {
+      await withDevice(uuid)((_) => {
+        BleTransport.runner(url); // Long running task init
+      }).toPromise();
+    })();
   }, [uuid]);
 
   return (

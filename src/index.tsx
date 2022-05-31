@@ -1,6 +1,6 @@
 import { AppState, NativeModules } from 'react-native';
 import Transport from '@ledgerhq/hw-transport';
-import { listen, log } from '@ledgerhq/logs';
+import { log } from '@ledgerhq/logs';
 import EventEmitter from './EventEmitter';
 
 const NativeBle = NativeModules.HwTransportReactNativeBle;
@@ -10,13 +10,11 @@ const NativeBle = NativeModules.HwTransportReactNativeBle;
  * one. This should also prevent race conditions since we would know if there
  * is an action pending on the device via the internal state of the transport.
  */
-debugger
-console.log('wadus from App.tsx', listen);
 let transportsCache: { [key: string]: any } = {};
 class Ble extends Transport {
   static appState: String = 'background';
   static appStateSubscription: any;
-  static uuid: String = ''; // We probably need more information than the uuid
+  static uuid: String = ''; // follow the Device model instead of uuid
   static scanObserver: any;
   static isScanning: Boolean = false;
 
