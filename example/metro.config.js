@@ -2,6 +2,7 @@ const path = require('path');
 const blacklist = require('metro-config/src/defaults/exclusionList');
 const escape = require('escape-string-regexp');
 const pak = require('../package.json');
+const resolve = require('metro-resolver').resolve;
 
 const root = path.resolve(__dirname, '..');
 
@@ -37,19 +38,17 @@ module.exports = {
 
     extraNodeModules,
 
-    // resolveRequest: (context, moduleName, platform) => {
-    //   console.log(moduleName, platform)
-    //   if (moduleName.startsWith('my-custom-resolver:')) {
-    //     // Resolve file path logic...
-    //     // NOTE: Throw an error if there is no resolution.
-    //     return {
-    //       filePath: "path/to/file",
-    //       type: 'sourceFile',
-    //     };
-    //   }
-    //   // Optionally, chain to the standard Metro resolver.
-    //   return context.resolveRequest(context, moduleName, platform);
-    // },
+    resolveRequest: (context, realModuleName, platform, moduleName) => {
+      if (moduleName.startsWith('@ledgerhq/logs')) {
+        return {
+          filePath: require.resolve('@ledgerhq/logs'),
+          type: 'sourceFile',
+        };
+      }
+      // Optionally, chain to the standard Metro resolver.
+      delete context.resolveRequest;
+      return resolve(context, realModuleName, platform, moduleName);
+    },
 
     sourceExts: ['tsx', 'ts', 'jsx', 'js', 'json', 'cjs'],
   },
